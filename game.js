@@ -34,13 +34,11 @@ class Actor {
         this.size = size||new Vector(1,1);
         this.speed = speed||new Vector(0,0);
         this.type = `actor`;
-        /*
-         Object.defineProperty(this, "type", {
+        Object.defineProperty(this, "type", {
          value: "actor",
-         writable: true, // запретить присвоение
-         configurable: false // запретить удаление
+         writable: false, // запретить присвоение
+         configurable: true // запретить удаление
          });
-         */
     }
     act() {
     }
@@ -75,12 +73,10 @@ class Level {
         this.actors = actors || [];
         this.player = new Actor();
         this.height = (this.grid) ? this.grid.length : 0;
-        this.width = (this.grid && this.grid[0]) ? this.grid[0].length : 0; //todo выбрать большее
+        this.width = (this.grid && this.grid[0]) ? this.grid.slice().sort((a,b) => b.length-a.length)[0].length : 0;
         this.status = null;
         this.finishDelay = 1;
-        this.player = new Actor();
-        this.player.type = 'player';
-        this.player.title = 'Игрок';
+        this.player = new Player(new Vector(0.0));
     }
 
     isFinished() {
@@ -106,12 +102,13 @@ class Level {
             throw(new Error(`Это не вектор`));
         }
         let futureActor = new Actor(where, size);
-        if (futureActor.left < 0 ||
-            futureActor.right > this.width - 1 ||
-            futureActor.top > this.height - 1)
-            return `wall`;
         if (futureActor.bottom < 0)
             return `lava`;
+        if (futureActor.left < 0 ||
+            futureActor.right > this.width-1 ||
+            futureActor.top > this.height-1)
+            return `wall`;
+
 
         let obj = this.grid[where.x][where.y];
         return obj;
@@ -131,7 +128,7 @@ class Level {
         if (this.isFinished()) return;
 
         switch (type) {
-            case 'lava ':
+            case 'lava':
                 this.status = `lost`;
                 break;
             case 'fireball':
@@ -146,3 +143,81 @@ class Level {
         }
     }
 }
+
+class LevelParser {
+    constructor (actorsDict) {
+        this.actorsDict = actorsDict||{};
+      }
+
+  actorFromSymbol(symbol) {
+      if (symbol === undefined||this.actorsDict.length === 0) {
+            return symbol;
+          }
+       return this.actorsDict[symbol];
+
+      }
+
+  obstacleFromSymbol(symbol) {
+       //return this.actorsDict[symbol].title;
+      switch (symbol) {
+          case 'x':
+            return 'wall';
+          case '!':
+            return 'lava';
+          default:
+              return undefined;
+          }
+      }
+
+  createGrid(plan) {
+        return plan.map(row => row.split('').map(cell => this.obstacleFromSymbol(cell)));
+      }
+
+
+  createActors(plan) {
+
+      return plan.reduce((result,row,y) =>{
+              row.split(``).forEach((cell,x) => {
+              let constr = this.actorFromSymbol(cell);
+              if (constr) {
+                  let actor = new constr(new Vector(x, y));
+                  //if (actor instanceof Actor) { //в задаче есть, а тесты валит, там класс MyActor не актор
+                      result.push(actor);
+                  //}
+              }
+          })
+              return result;
+          },[])
+    }
+
+  parse(plan) {
+        return new Level(this.createGrid(plan), this.createActors(plan));
+      }
+}
+
+class Player extends Actor {
+    constructor(pos) {
+        let size = new Vector(0.8,1.5);
+        super(pos,size);
+        this.pos = this.pos.plus(new Vector(0,-0.5));
+        this.title = 'Игрок';
+        Object.defineProperty(this, "type", {
+            value: "player",
+            writable: false, // запретить присвоение
+            configurable: false // запретить удаление
+        });    }
+}
+
+const schema = [
+    '         ',
+    '         ',
+    '         ',
+    '         ',
+    '     !xxx',
+    '         ',
+    'xxx!     ',
+    '    @    '
+];
+const parser = new LevelParser();
+const level = parser.parse(schema);
+runLevel(level, DOMDisplay);
