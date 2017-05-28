@@ -76,7 +76,8 @@ class Level {
         this.width = (this.grid && this.grid[0]) ? this.grid.slice().sort((a,b) => b.length-a.length)[0].length : 0;
         this.status = null;
         this.finishDelay = 1;
-        this.player = new Player(new Vector(0.0));
+        const player = new Player(new Vector(0.0));
+        this.player = player;
     }
 
     isFinished() {
@@ -108,7 +109,6 @@ class Level {
             futureActor.right > this.width-1 ||
             futureActor.top > this.height-1)
             return `wall`;
-
 
         let obj = this.grid[where.x][where.y];
         return obj;
@@ -205,19 +205,90 @@ class Player extends Actor {
             value: "player",
             writable: false, // запретить присвоение
             configurable: false // запретить удаление
-        });    }
+        });
+    }
 }
 
-const schema = [
-    '         ',
-    '         ',
-    '         ',
-    '         ',
-    '     !xxx',
-    '         ',
-    'xxx!     ',
-    '    @    '
-];
-const parser = new LevelParser();
-const level = parser.parse(schema);
-runLevel(level, DOMDisplay);
+class Fireball extends Actor {
+    constructor(pos,speed) {
+        let size = new Vector(1,1);
+        super(pos,size,speed);
+        Object.defineProperty(this, "type", {
+            value: "fireball",
+            writable: false, // запретить присвоение
+            configurable: false // запретить удаление
+        });
+    }
+    getNextPosition(multiplier=1) {
+        return this.pos.plus(this.speed.times(multiplier));
+    }
+    handleObstacle() {
+        this.speed = this.speed.times(-1);
+    }
+    act(time,level) {
+        let nextPosition = this.getNextPosition();
+        let obstacle = level.obstacleAt(nextPosition,this.size);
+        if (obstacle) {
+            this.handleObstacle();
+        } else {
+            this.pos = nextPosition;
+        }
+    }
+}
+
+class HorizontalFireball extends Fireball {
+    constructor(pos) {
+        let speed = new Vector(2,0);
+        super(pos,speed);
+    }
+}
+
+class VerticalFireball extends Fireball {
+    constructor(pos) {
+        let speed = new Vector(0,2);
+        super(pos,speed);
+    }
+}
+
+class FireRain extends Fireball {
+    constructor(pos) {
+        let speed = new Vector(0,3);
+        super(pos,speed);
+        this.firstPos = pos;
+    }
+    handleObstacle() {
+        this.pos = this.firstPos;
+    }
+}
+
+class Coin extends Actor {
+    constructor(pos) {
+        let size = new Vector(0.6,0.6);
+        super(pos,size);
+        this.pos = this.pos.plus(new Vector(0.2,0.1));
+        Object.defineProperty(this, "type", {
+            value: "coin",
+            writable: false, // запретить присвоение
+            configurable: false // запретить удаление
+        });
+        this.springSpeed = 8;
+        this.springDist = 0.07;
+        this.spring = Math.random() * 2*Math.PI;
+    }
+    updateSpring(time=1){
+        this.spring += this.springSpeed*time;
+    }
+    getSpringVector(){
+        return new Vector(0,Math.sin(this.spring)*this.springDist)
+    }
+    getNextPosition(time){
+        this.updateSpring(time);
+        return this.pos.plus(this.getSpringVector())
+    }
+    act(time) {
+        this.pos = this.getNextPosition(time);
+    }
+}
+
+
+
