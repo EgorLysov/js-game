@@ -185,7 +185,7 @@ class LevelParser {
       return plan.reduce((result,row,y) =>{
               row.split(``).forEach((cell,x) => {
               let constr = this.actorFromSymbol(cell);
-              if (constr) {
+              if (constr&&(typeof(constr)===`function`)) {
                   let actor = new constr(new Vector(x, y));
                   if (actor instanceof Actor) { //в задаче есть, а тесты валит, там класс MyActor не актор
                       result.push(actor);
